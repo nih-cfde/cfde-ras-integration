@@ -1,0 +1,104 @@
+import os
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+
+from flask import Flask, g
+from flask_login import LoginManager, current_user
+
+from social_core.backends.utils import load_backends
+from social_flask.utils import load_strategy
+from social_flask.routes import social_auth
+from social_flask.template_filters import backends
+from social_flask_sqlalchemy.models import init_social
+
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# App
+app = Flask(
+    'RAS Example App',
+    template_folder=os.path.join(BASE_DIR, 'app', 'templates')
+)
+app.config.from_object('app.settings')
+
+try:
+    app.config.from_object('app.local_settings')
+except ImportError:
+    pass
+
+# DB
+engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+db_session = scoped_session(Session)
+
+app.register_blueprint(social_auth)
+init_social(app, db_session)
+
+login_manager = LoginManager()
+login_manager.login_view = 'main'
+login_manager.login_message = ''
+login_manager.init_app(app)
+
+from app import models  # noqa
+from app import views  # noqa
+
+
+@login_manager.user_loader
+def load_user(userid):
+    try:
+        return models.User.query.get(int(userid))
+    except (TypeError, ValueError):
+        pass
+
+
+@app.before_request
+def global_user():
+    # evaluate proxy value
+    g.user = current_user._get_current_object()
+
+
+@app.teardown_appcontext
+def commit_on_success(error=None):
+    if error is None:
+        db_session.commit()
+    else:
+        db_session.rollback()
+
+    db_session.remove()
+
+
+@app.context_processor
+def auth_context():
+    """Common view context"""
+    authentication_backends = app.config['SOCIAL_AUTH_AUTHENTICATION_BACKENDS']
+    user = getattr(g, 'user', None)
+    strategy = load_strategy()
+
+    context = {
+        'user': user,
+        'available_backends': load_backends(authentication_backends),
+        'associated': {}
+    }
+
+    if user and user.is_authenticated:
+        context['associated'] = {
+            assoc.provider: assoc
+            for assoc in strategy.storage.user.get_social_auth_for_user(user)
+        }
+    return context
+
+
+def social_url_for(name, **kwargs):
+    login_urls = {
+        'social:begin': '/login/{backend}/',
+        'social:complete': '/complete/{backend}/',
+        'social:disconnect': '/disconnect/{backend}/',
+        'social:disconnect_individual': '/disconnect/{backend}/'
+                                        '{association_id}/',
+    }
+    return login_urls.get(name, name).format(**kwargs)
+
+
+app.context_processor(backends)
+app.jinja_env.globals['url'] = social_url_for
