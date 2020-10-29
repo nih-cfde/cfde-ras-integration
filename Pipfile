@@ -13,6 +13,7 @@ Flask-Login = "*"
 Flask-Script = "*"
 Werkzeug = "*"
 Jinja2 = "*"
+python-jose = "*"
 
 [requires]
 python_version = "3.8"
