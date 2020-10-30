@@ -44,11 +44,14 @@
     <p>This portal integrates RAS Auth.</p>
   </div>
 
+  <div class="alert alert-warning" role="alert">
+    RAS Auth Login is not yet available. The following demonstrates Globus Auth as a placeholder until
+    integrating with RAS is possible.
+  </div>
+
   <div class="card">
     <div class="card-header">Restricted Access</div>
     <div class="card-body">
-      <p>
-      </p>
       <table class="table">
         {% for name, backend in available_backends.items() %}
         <tr>
@@ -69,6 +72,47 @@
       </table>
     </div>
   </div>
+
+  {% for provider, social_auth_model in associated.items() %}
+    <div class="card my-3">
+      <div class="card-header">User Info -- {{ provider }}</div>
+      <div class="card-body text-break">
+        <table class="table">
+          <tr>
+            <td>Username</td>
+            <td>{{ social_auth_model.user.username }}</td>
+          </tr>
+          <tr>
+            <td>Provider ID</td>
+            <td>{{ social_auth_model.uid }}</td>
+          </tr>
+          <tr>
+            <td>Email</td>
+            <td>{{ social_auth_model.user.email }}</td>
+          </tr>
+          <tr>
+            <td>Extra Data</td>
+            <td>
+              {% for name, value in social_auth_model.extra_data.items() %}
+              {{ name }} --
+              {% if name == 'access_token' or name == 'id_token' %}
+              <strong>Item hidden</strong>
+<!--              <p class="text-break text-small" style="max-width: 800px;">{{ value }}</p>-->
+              {% else %}
+              {{ value }}
+              {% endif %}
+              <br>
+              {% endfor %}
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  {% endfor %}
+
+
+
+
 </div>
 
 </body>
