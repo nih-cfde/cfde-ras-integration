@@ -44,11 +44,6 @@
     <p>This portal integrates RAS Auth.</p>
   </div>
 
-  <div class="alert alert-warning" role="alert">
-    RAS Auth Login is not yet available. The following demonstrates Globus Auth as a placeholder until
-    integrating with RAS is possible.
-  </div>
-
   <div class="card">
     <div class="card-header">Restricted Access</div>
     <div class="card-body">
@@ -74,40 +69,103 @@
   </div>
 
   {% for provider, social_auth_model in associated.items() %}
-    <div class="card my-3">
-      <div class="card-header">User Info -- {{ provider }}</div>
-      <div class="card-body text-break">
-        <table class="table">
-          <tr>
-            <td>Username</td>
-            <td>{{ social_auth_model.user.username }}</td>
-          </tr>
-          <tr>
-            <td>Provider ID</td>
-            <td>{{ social_auth_model.uid }}</td>
-          </tr>
-          <tr>
-            <td>Email</td>
-            <td>{{ social_auth_model.user.email }}</td>
-          </tr>
-          <tr>
-            <td>Extra Data</td>
-            <td>
-              {% for name, value in social_auth_model.extra_data.items() %}
-              {{ name }} --
-              {% if name == 'access_token' or name == 'id_token' %}
-              <strong>Item hidden</strong>
-<!--              <p class="text-break text-small" style="max-width: 800px;">{{ value }}</p>-->
-              {% else %}
-              {{ value }}
-              {% endif %}
-              <br>
+  <div class="card my-3">
+    <div class="card-header">User Info -- {{ provider }}</div>
+    <div class="card-body text-break">
+      <table class="table">
+        <tr>
+          <td>Username</td>
+          <td>{{ social_auth_model.user.username }}</td>
+        </tr>
+        <tr>
+          <td>Provider ID</td>
+          <td>{{ social_auth_model.uid }}</td>
+        </tr>
+        <tr>
+          <td>Email</td>
+          <td>{{ social_auth_model.user.email }}</td>
+        </tr>
+        <tr>
+          <td>Extra Data</td>
+          <td>
+            {% for name, value in social_auth_model.extra_data.items() %}
+            {% if name != 'access_token' and name != 'id_token' and name != 'ga4gh_passport_v1' %}
+            {{ name }} -- {{ value }}<br>
+            {% endif %}
+            {% endfor %}
+          </td>
+        </tr>
+      </table>
+      <div class="accordion" id="authData">
+        <div class="row">
+          <div class="col-2">
+            <p>Raw:</p>
+          </div>
+          <div class="col-8">
+            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#idTokenCollapse" aria-expanded="true" aria-controls="idTokenCollapse">ID Token</button>
+            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#accessToken" aria-expanded="true" aria-controls="accessToken">Access Token</button>
+            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#ga4ghPassports" aria-expanded="true" aria-controls="ga4ghPassports">GA4GH Passports</button>
+          </div>
+        </div>
+        <br>
+        <div class="row">
+          <div class="col-2">
+            <p>Formatted:</p>
+          </div>
+          <div class="col-8">
+            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#idTokenCollapseFormatted" aria-expanded="true" aria-controls="idTokenCollapse">ID Token</button>
+            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#accessTokenFormatted" aria-expanded="true" aria-controls="accessToken">Access Token</button>
+            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#ga4ghPassportsFormatted" aria-expanded="true" aria-controls="ga4ghPassports">GA4GH Passports</button>
+          </div>
+        </div>
+        <div id="idTokenCollapse" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+          <div class="card-body">
+            <code>{{social_auth_model.extra_data.id_token}}</code>
+          </div>
+        </div>
+        <div id="accessToken" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+          <div class="card-body">
+            <code>{{social_auth_model.extra_data.access_token}}</code>
+          </div>
+        </div>
+        <div id="ga4ghPassports" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+          <div class="card-body">
+            <code>{{social_auth_model.extra_data.ga4gh_passport_v1}}</code>
+          </div>
+        </div>
+        <div id="idTokenCollapseFormatted" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+          <div class="card-body">
+            <table class="table">
+              {% for key, value in get_jwt_payload(social_auth_model.extra_data.id_token).items() %}
+              <tr>
+                <td>{{key}}</td>
+                <td>{{value}}</td>
+              </tr>
               {% endfor %}
-            </td>
-          </tr>
-        </table>
+            </table>
+          </div>
+        </div>
+        <div id="accessTokenFormatted" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+          <div class="card-body">
+            <table class="table">
+              {% for key, value in get_jwt_payload(social_auth_model.extra_data.access_token).items() %}
+              <tr>
+                <td>{{key}}</td>
+                <td>{{value}}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </div>
+        </div>
+        <div id="ga4ghPassportsFormatted" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+          <div class="card-body">
+            {% set ga4gh_passport_v1=social_auth_model.extra_data.ga4gh_passport_v1 %}
+            {% include 'ga4gh_passport.html' %}
+          </div>
+        </div>
       </div>
     </div>
+  </div>
   {% endfor %}
 
 
