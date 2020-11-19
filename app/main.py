@@ -1,4 +1,6 @@
 import os
+import jose
+import json
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -100,5 +102,12 @@ def social_url_for(name, **kwargs):
     return login_urls.get(name, name).format(**kwargs)
 
 
+def get_jwt_payload(jwt_obj):
+    """Fetches payload information for a given jwt object. Does not attempt to
+    verify any signatures on the JWT, only returns the payload dict."""
+    return json.loads(jose.jws.verify(jwt_obj, None, [], verify=False))
+
+
 app.context_processor(backends)
 app.jinja_env.globals['url'] = social_url_for
+app.jinja_env.globals['get_jwt_payload'] = get_jwt_payload
