@@ -3,9 +3,12 @@
 This is a small webapp to demonstrate Auth in RAS. Users can both login to the
  portal to demonstrate RAS conforms to the OAuth2/OpenID spec, in addition to
  viewing extended passport information returned by RAS on successful login.
- 
-See [documentation on RAS here](https://authtest.nih.gov/iTrust/testOIDC.asp)
-See the [deployment here](http://ras-dev.nih-cfde.org/)
+
+Helpful links:
+
+* [RAS Documentation](https://auth.nih.gov/docs/RAS/serviceofferings.html)
+* [RAS Test Server](https://authtest.nih.gov/iTrust/testOIDC.asp)
+* [RAS deployment](http://ras-dev.nih-cfde.org/)
 
 ### Portal Architecture
 
