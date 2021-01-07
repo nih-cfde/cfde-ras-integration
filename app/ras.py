@@ -19,7 +19,8 @@ class RasOpenIDConnect(OpenIdConnectAuth):
 
     name = 'ras'
     # Override the current v1 userinfo endpoint. The v1.1 endpoint returns
-    # userinfo in a JWT token instead of plain JSON
+    # userinfo in a JWT token instead of plain JSON. If not specified,
+    # /userinfo will default to the value in .well-known/openid-configuration
     USERINFO_URL = 'https://stsstg.nih.gov/openid/connect/v1.1/userinfo'
     OIDC_ENDPOINT = 'https://stsstg.nih.gov'
     # The 'ga4gh_passport_v1' json object will be returned within /userinfo
@@ -37,6 +38,19 @@ class RasOpenIDConnect(OpenIdConnectAuth):
         ('sub', 'sub', True),
         (PASSPORT, PASSPORT, True),
     ]
+
+    def user_data(self, access_token, *args, **kwargs):
+        """Fetch userinfo data. RAS returns an empty json response for v1.1 if
+        the scopes are ['openid', 'profile', 'email']"""
+        try:
+            return self.get_json(self.userinfo_url(), headers={
+                'Authorization': 'Bearer {0}'.format(access_token)
+            })
+        except json.decoder.JSONDecodeError:
+            # This happens if the 'ga4gh_passport_v1' scope is not requested
+            # on version 1.1. I'm pretty sure this is a bug in RAS.
+            log.error(f'Endpoint {self.userinfo_url()} did not return JSON!')
+            return {}
 
     def get_user_details(self, response):
         # Only include passports that verify
