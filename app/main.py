@@ -1,6 +1,7 @@
 import os
 import jose
 import json
+import logging.config
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -28,6 +29,10 @@ try:
     app.config.from_object('app.local_settings')
 except ImportError:
     pass
+
+logging.config.dictConfig(app.config['LOGGING_DICT_CONFIG'])
+log = logging.getLogger(__name__)
+log.debug('Debug logging enabled')
 
 # DB
 engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
