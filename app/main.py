@@ -1,6 +1,8 @@
 import os
 import jose
 import json
+import requests
+import logging.config
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -13,6 +15,8 @@ from social_flask.utils import load_strategy
 from social_flask.routes import social_auth
 from social_flask.template_filters import backends
 from social_flask_sqlalchemy.models import init_social
+
+from app.ras import RasOpenIDConnect
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,6 +32,10 @@ try:
     app.config.from_object('app.local_settings')
 except ImportError:
     pass
+
+logging.config.dictConfig(app.config['LOGGING_DICT_CONFIG'])
+log = logging.getLogger(__name__)
+log.debug('Debug logging enabled')
 
 # DB
 engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
@@ -108,6 +116,18 @@ def get_jwt_payload(jwt_obj):
     return json.loads(jose.jws.verify(jwt_obj, None, [], verify=False))
 
 
+def get_userinfo_version():
+    url = RasOpenIDConnect.USERINFO_URL
+    if not url:
+        # This is easier than instantiating RasOpenIDConnect() to fetch the
+        # OIDC config for us.
+        oidc_cfg = 'https://stsstg.nih.gov/.well-known/openid-configuration'
+        url = requests.get(oidc_cfg).json()['userinfo_endpoint']
+    version = url.replace('https://stsstg.nih.gov/openid/connect/', '')
+    return version.replace('/userinfo', '')
+
+
 app.context_processor(backends)
 app.jinja_env.globals['url'] = social_url_for
 app.jinja_env.globals['get_jwt_payload'] = get_jwt_payload
+app.jinja_env.globals['get_userinfo_version'] = get_userinfo_version

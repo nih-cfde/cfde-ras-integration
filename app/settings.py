@@ -17,3 +17,21 @@ SOCIAL_AUTH_AUTHENTICATION_BACKENDS = (
     # 'social_core.backends.globus.GlobusOpenIdConnect',
     'app.ras.RasOpenIDConnect',
 )
+
+LOGGING_DICT_CONFIG = {
+    'version': 1,
+    'formatters': {
+        'basic': {'format': '[%(levelname)s] '
+                            '%(name)s::%(funcName)s() %(message)s'}
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'WARNING',
+            'formatter': 'basic',
+        }
+    },
+    'loggers': {
+        'app': {'level': 'DEBUG', 'handlers': ['console']},
+    },
+}
