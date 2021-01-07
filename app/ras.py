@@ -1,9 +1,12 @@
 import json
+import logging
 from jose import jwk, jwt
 from jose.jwt import JWTError, JWTClaimsError, ExpiredSignatureError
 from jose.utils import base64url_decode
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 from social_core.exceptions import AuthTokenError
+
+log = logging.getLogger(__name__)
 
 
 class RasOpenIDConnect(OpenIdConnectAuth):
@@ -15,8 +18,16 @@ class RasOpenIDConnect(OpenIdConnectAuth):
     """
 
     name = 'ras'
-    USERINFO_URL = 'https://stsstg.nih.gov:443/openid/connect/v1.1/userinfo'
-    OIDC_ENDPOINT = 'https://stsstg.nih.gov:443'
+    # Override the current v1 userinfo endpoint. The v1.1 endpoint returns
+    # userinfo in a JWT token instead of plain JSON
+    USERINFO_URL = 'https://stsstg.nih.gov/openid/connect/v1.1/userinfo'
+    OIDC_ENDPOINT = 'https://stsstg.nih.gov'
+    # The 'ga4gh_passport_v1' json object will be returned within /userinfo
+    # if the ga4gh_passport_v1 scope is present.
+    PASSPORT = 'ga4gh_passport_v1'
+    # If using v1.1, the `ga4gh_passport_v1' will be nested within an
+    # additional JWT called 'passport_jwt_v11'.
+    PASSPORT_JWT_ENVELOPE = 'passport_jwt_v11'
     EXTRA_DATA = [
         ('expires_in', 'expires_in', True),
         ('refresh_token', 'refresh_token', True),
@@ -24,46 +35,61 @@ class RasOpenIDConnect(OpenIdConnectAuth):
         ('other_tokens', 'other_tokens', True),
         ('scope', 'scope', True),
         ('sub', 'sub', True),
-        ('ga4gh_passport_v1', 'ga4gh_passport_v1', True),
+        (PASSPORT, PASSPORT, True),
     ]
 
     def get_user_details(self, response):
         # Only include passports that verify
+        response[self.PASSPORT] = self.get_ga4gh_passport(response)
+        return super().get_user_details(response)
+
+    def get_ga4gh_passport(self, response):
+        """Fetch the 'ga4gh_passport_v1 included within information returned
+        by /userinfo. Works for both v1 and v1.1 versions on RAS."""
         algorithm = self.get_algorithm(response['id_token'])
-        passport_jwt = response.get('passport_jwt_v11')
-        if passport_jwt:
+        if response.get(self.PASSPORT_JWT_ENVELOPE):
+            # The ga4gh passport will be concealed within an additional JWT
+            # Envelope. Verify both the JWT envelope AND the (list of) JWT
+            # passports.
+            log.info(f'Loading Passport with /userinfo endpoint v1.1')
+            passport_jwt = response[self.PASSPORT_JWT_ENVELOPE]
             client_id, _ = self.get_key_and_secret()
             key = self.find_valid_key(passport_jwt)
             if not key:
-                raise AuthTokenError(self, 'Signature verification failed')
-
-            alg = key['alg']
-            rsakey = jwk.construct(key)
+                raise AuthTokenError(self, 'Signature verification failed '
+                                           'on Passport JWT')
             try:
                 passport_envelope = jwt.decode(
                     passport_jwt,
-                    rsakey.to_pem().decode('utf-8'),
+                    jwk.construct(key).to_pem().decode('utf-8'),
                     algorithms=[algorithm],
                     audience=client_id,
-                    issuer=self.id_token_issuer(),
+                    issuer=self.OIDC_ENDPOINT,
                     access_token=response['access_token'],
                     options=self.JWT_DECODE_OPTIONS,
                 )
-                response['ga4gh_passport_v1'] = [
-                    passport for passport in passport_envelope.get('ga4gh_passport_v1', [])
-                    if self.verify_jwt(passport, algorithm)
-                ]
-            except ExpiredSignatureError:
-                raise AuthTokenError(self, 'Signature has expired')
-            except JWTClaimsError as error:
-                raise AuthTokenError(self, str(error))
-            except JWTError:
-                raise AuthTokenError(self, 'Invalid signature')
-        return super().get_user_details(response)
+                passport = passport_envelope[self.PASSPORT]
+                return self.verify_passport(passport, algorithm)
+            except (ExpiredSignatureError, JWTClaimsError, JWTError) as e:
+                raise AuthTokenError(self,
+                                     f'RAS GA4GH token validation error: {e}')
+        elif response.get(self.PASSPORT):
+            # The /userinfo v1 endpoint does NOT wrap the ga4gh passport in a
+            # JWT. Simply verify the passport and return it.
+            log.info(f'Loading Passport with /userinfo endpoint v1')
+            return self.verify_passport(response[self.PASSPORT], algorithm)
 
-    def get_algorithm(self, id_token):
-        """Get the algorithm 'alg' set on an id_token header"""
-        header, _, _ = id_token.split('.')
+    def verify_passport(self, ga4gh_passport_v1, algorithm):
+        """Verify a ga4gh_passport_v1. These are a list of JWT tokens. Each
+        one should pass validation"""
+        return [
+            passport for passport in ga4gh_passport_v1
+            if self.verify_jwt(passport, algorithm)
+        ]
+
+    def get_algorithm(self, jwt_token):
+        """Get the algorithm 'alg' set on a JWT token header"""
+        header, _, _ = jwt_token.split('.')
         return json.loads(base64url_decode(header)).get('alg')
 
     def verify_jwt(self, jwt, algorithm):
