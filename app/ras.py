@@ -1,7 +1,9 @@
 import json
-from jose import jwk
+from jose import jwk, jwt
+from jose.jwt import JWTError, JWTClaimsError, ExpiredSignatureError
 from jose.utils import base64url_decode
 from social_core.backends.open_id_connect import OpenIdConnectAuth
+from social_core.exceptions import AuthTokenError
 
 
 class RasOpenIDConnect(OpenIdConnectAuth):
@@ -13,7 +15,8 @@ class RasOpenIDConnect(OpenIdConnectAuth):
     """
 
     name = 'ras'
-    OIDC_ENDPOINT = 'https://stsstg.nih.gov'
+    USERINFO_URL = 'https://stsstg.nih.gov:443/openid/connect/v1.1/userinfo'
+    OIDC_ENDPOINT = 'https://stsstg.nih.gov:443'
     EXTRA_DATA = [
         ('expires_in', 'expires_in', True),
         ('refresh_token', 'refresh_token', True),
@@ -27,10 +30,35 @@ class RasOpenIDConnect(OpenIdConnectAuth):
     def get_user_details(self, response):
         # Only include passports that verify
         algorithm = self.get_algorithm(response['id_token'])
-        response['ga4gh_passport_v1'] = [
-            passport for passport in response.get('ga4gh_passport_v1', [])
-            if self.verify_jwt(passport, algorithm)
-        ]
+        passport_jwt = response.get('passport_jwt_v11')
+        if passport_jwt:
+            client_id, _ = self.get_key_and_secret()
+            key = self.find_valid_key(passport_jwt)
+            if not key:
+                raise AuthTokenError(self, 'Signature verification failed')
+
+            alg = key['alg']
+            rsakey = jwk.construct(key)
+            try:
+                passport_envelope = jwt.decode(
+                    passport_jwt,
+                    rsakey.to_pem().decode('utf-8'),
+                    algorithms=[algorithm],
+                    audience=client_id,
+                    issuer=self.id_token_issuer(),
+                    access_token=response['access_token'],
+                    options=self.JWT_DECODE_OPTIONS,
+                )
+                response['ga4gh_passport_v1'] = [
+                    passport for passport in passport_envelope.get('ga4gh_passport_v1', [])
+                    if self.verify_jwt(passport, algorithm)
+                ]
+            except ExpiredSignatureError:
+                raise AuthTokenError(self, 'Signature has expired')
+            except JWTClaimsError as error:
+                raise AuthTokenError(self, str(error))
+            except JWTError:
+                raise AuthTokenError(self, 'Invalid signature')
         return super().get_user_details(response)
 
     def get_algorithm(self, id_token):
