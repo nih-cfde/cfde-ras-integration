@@ -17,7 +17,7 @@ class RasOpenIDConnect(OpenIdConnectAuth):
     Set SOCIAL_AUTH_RAS_KEY and SOCIAL_AUTH_RAS_SECRET in local_settings.py
     """
 
-    name = 'globus'
+    name = 'ras'
     # Override the current v1 userinfo endpoint. The v1.1 endpoint returns
     # userinfo in a JWT token instead of plain JSON. If not specified,
     # /userinfo will default to the value in .well-known/openid-configuration
