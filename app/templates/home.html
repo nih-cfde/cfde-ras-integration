@@ -11,6 +11,7 @@
   <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+  <style>.collapsing { transition: none !important; }</style>
   <title>RAS Integration Example</title>
 </head>
 <body>
@@ -27,10 +28,7 @@
 
         {% if user.is_authenticated %}
         <li>
-          <a class="nav-link" href="{{ url('logout') }}">Logout</a>
-        </li>
-        <li>
-          <a class="nav-link" href="/">{{user.username }}</a>
+          <a class="nav-link" href="/">{{ user.email }}</a>
         </li>
         {% endif %}
       </ul>
@@ -41,7 +39,6 @@
 <div class="container">
   <div class="my-3">
     <h3>Researcher Authentication Service Integration</h3>
-    <p>This portal integrates RAS Auth.</p>
     <div class="alert alert-info" role="alert">
       Configured to use /userinfo version {{ get_userinfo_version() }}
     </div>
@@ -50,131 +47,67 @@
   <div class="card">
     <div class="card-header">Restricted Access</div>
     <div class="card-body">
-      <table class="table">
         {% for name, backend in available_backends.items() %}
-        <tr>
-          {% set association = associated.get(name) %}
-          <td>{{ name.capitalize() }}</td>
-          {% if association %}
-          <td><form method="post" action="{{ url('social:disconnect_individual', backend=association.provider, association_id=association.id) }}">
-            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-            <button class="btn btn-danger" type="submit" name="{{ backend }}">Disconnect</button>
-          </form></td>
-          {% else %}
-          <td><a class="btn btn-primary" role="button" href="{{ url('social:begin', backend=name) }}">
-            Login
-          </a></td>
-          {% endif %}
-        </tr>
+            {% set association = associated.get(name) %}
+            {% if association %}
+                <form method="post" action="{{ url('social:disconnect_individual', backend=association.provider, association_id=association.id) }}">
+                      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                      <button class="btn btn-danger" type="submit" name="{{ backend }}">Disconnect</button>
+                </form>
+            {% else %}
+                <a class="btn btn-primary" role="button" href="{{ url('social:begin', backend=name) }}">Login</a>
+            {% endif %}
         {% endfor %}
-      </table>
     </div>
   </div>
 
   {% for provider, social_auth_model in associated.items() %}
-  <div class="card my-3">
-    <div class="card-header">User Info -- {{ provider }}</div>
-    <div class="card-body text-break">
-      <table class="table">
-        <tr>
-          <td>Username</td>
-          <td>{{ social_auth_model.user.username }}</td>
-        </tr>
-        <tr>
-          <td>Provider ID</td>
-          <td>{{ social_auth_model.uid }}</td>
-        </tr>
-        <tr>
-          <td>Email</td>
-          <td>{{ social_auth_model.user.email }}</td>
-        </tr>
-        <tr>
-          <td>Extra Data</td>
-          <td>
-            {% for name, value in social_auth_model.extra_data.items() %}
-            {% if name != 'access_token' and name != 'id_token' and name != 'ga4gh_passport_v1' %}
-            {{ name }} -- {{ value }}<br>
-            {% endif %}
-            {% endfor %}
-          </td>
-        </tr>
-      </table>
-      <div class="accordion" id="authData">
-        <div class="row">
-          <div class="col-2">
-            <p>Raw:</p>
+  <div class="card my-3 mb-0 pb-0">
+    <div class="card-header">View</div>
+      <div class="card-body text-break">
+        <div class="accordion" id="authData">
+          <div class="row">
+            <div class="col-10">
+              <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#userinfo"
+                     aria-expanded="true" aria-controls="userinfo">Userinfo</button>
+              <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#idTokenCollapse"
+                     aria-expanded="true" aria-controls="idTokenCollapse">ID Token</button>
+              <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#accessToken"
+                     aria-expanded="true" aria-controls="accessToken">Access Token</button>
+              <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#ga4ghPassports"
+                     aria-expanded="true" aria-controls="ga4ghPassports">GA4GH Passports</button>
+            </div>
           </div>
-          <div class="col-8">
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#idTokenCollapse" aria-expanded="true" aria-controls="idTokenCollapse">ID Token</button>
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#accessToken" aria-expanded="true" aria-controls="accessToken">Access Token</button>
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#ga4ghPassports" aria-expanded="true" aria-controls="ga4ghPassports">GA4GH Passports</button>
-          </div>
-        </div>
-        <br>
-        <div class="row">
-          <div class="col-2">
-            <p>Formatted:</p>
-          </div>
-          <div class="col-8">
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#idTokenCollapseFormatted" aria-expanded="true" aria-controls="idTokenCollapse">ID Token</button>
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#accessTokenFormatted" aria-expanded="true" aria-controls="accessToken">Access Token</button>
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#ga4ghPassportsFormatted" aria-expanded="true" aria-controls="ga4ghPassports">GA4GH Passports</button>
-          </div>
-        </div>
-        <div id="idTokenCollapse" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
-          <div class="card-body">
-            <code>{{social_auth_model.extra_data.id_token}}</code>
-          </div>
-        </div>
-        <div id="accessToken" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
-          <div class="card-body">
-            <code>{{social_auth_model.extra_data.access_token}}</code>
-          </div>
-        </div>
-        <div id="ga4ghPassports" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
-          <div class="card-body">
-            <code>{{social_auth_model.extra_data.ga4gh_passport_v1}}</code>
-          </div>
-        </div>
-        <div id="idTokenCollapseFormatted" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
-          <div class="card-body">
-            <table class="table">
-              {% for key, value in get_jwt_payload(social_auth_model.extra_data.id_token).items() %}
-              <tr>
-                <td>{{key}}</td>
-                <td>{{value}}</td>
-              </tr>
-              {% endfor %}
-            </table>
-          </div>
-        </div>
-        <div id="accessTokenFormatted" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
-          <div class="card-body">
-            <table class="table">
-              {% for key, value in get_jwt_payload(social_auth_model.extra_data.access_token).items() %}
-              <tr>
-                <td>{{key}}</td>
-                <td>{{value}}</td>
-              </tr>
-              {% endfor %}
-            </table>
-          </div>
-        </div>
-        <div id="ga4ghPassportsFormatted" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
-          <div class="card-body">
-            {% set ga4gh_passport_v1=social_auth_model.extra_data.ga4gh_passport_v1 %}
-            {% include 'ga4gh_passport.html' %}
-          </div>
+          <br>
+            <div id="userinfo" class="collapse show" aria-labelledby="headingOne" data-parent="#authData">
+                <div class="card-body">
+                    <pre>{{ social_auth_model.extra_data.userinfo | pretty_json }}</pre>
+                </div>
+            </div>
+
+            <div id="idTokenCollapse" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+                <div class="card-body">
+                    <pre>{{ get_jwt_payload(social_auth_model.extra_data.id_token) | pretty_json }}</pre>
+                </div>
+            </div>
+
+            <div id="accessToken" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+                <div class="card-body">
+                    <pre>{{ get_jwt_payload(social_auth_model.extra_data.access_token) | pretty_json }}</pre>
+                </div>
+            </div>
+
+            <div id="ga4ghPassports" class="collapse" aria-labelledby="headingOne" data-parent="#authData">
+                <div class="card-body">
+                    {% for encoded_passport in social_auth_model.extra_data.ga4gh_passport_v1 %}
+                        <pre>{{ get_jwt_payload(encoded_passport) | pretty_json }}</pre>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
       </div>
-    </div>
   </div>
   {% endfor %}
-
-
-
-
 </div>
-
 </body>
 </html>

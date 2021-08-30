@@ -1,11 +1,8 @@
-import os
 import jose
 import json
-import requests
 import logging.config
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
+import os
+import requests
 
 from flask import Flask, g
 from flask_login import LoginManager, current_user
@@ -15,6 +12,9 @@ from social_flask.utils import load_strategy
 from social_flask.routes import social_auth
 from social_flask.template_filters import backends
 from social_flask_sqlalchemy.models import init_social
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app.ras import RasOpenIDConnect
 
@@ -104,8 +104,7 @@ def social_url_for(name, **kwargs):
         'social:begin': '/login/{backend}/',
         'social:complete': '/complete/{backend}/',
         'social:disconnect': '/disconnect/{backend}/',
-        'social:disconnect_individual': '/disconnect/{backend}/'
-                                        '{association_id}/',
+        'social:disconnect_individual': '/disconnect/{backend}/{association_id}/',
     }
     return login_urls.get(name, name).format(**kwargs)
 
@@ -125,6 +124,11 @@ def get_userinfo_version():
         url = requests.get(oidc_cfg).json()['userinfo_endpoint']
     version = url.replace('https://stsstg.nih.gov/openid/connect/', '')
     return version.replace('/userinfo', '')
+
+
+@app.template_filter('pretty_json')
+def pretty_json(j):
+    return json.dumps(j, indent=4)
 
 
 app.context_processor(backends)

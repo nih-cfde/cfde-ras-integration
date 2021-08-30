@@ -13,6 +13,7 @@ SOCIAL_AUTH_LOGIN_URL = '/'
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/'
 SOCIAL_AUTH_USER_MODEL = 'app.models.User'
 SOCIAL_AUTH_STORAGE = 'social_flask_sqlalchemy.models.FlaskStorage'
+SOCIAL_AUTH_STRATEGY = 'app.strategy.RasStrategy'
 SOCIAL_AUTH_AUTHENTICATION_BACKENDS = (
     # 'social_core.backends.globus.GlobusOpenIdConnect',
     'app.ras.RasOpenIDConnect',
