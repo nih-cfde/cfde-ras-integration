@@ -14,4 +14,4 @@ def main():
 def logout():
     """Logout view"""
     logout_user()
-    return redirect('/')
+

@@ -1,7 +1,6 @@
 import json
 import logging
 import requests
-from flask_login import logout_user
 from jose import jwk, jwt
 from jose.jwt import JWTError, JWTClaimsError, ExpiredSignatureError
 from jose.utils import base64url_decode
@@ -17,7 +16,10 @@ class RasOpenIDConnect(OpenIdConnectAuth):
     Set SOCIAL_AUTH_RAS_KEY and SOCIAL_AUTH_RAS_SECRET in local_settings.py
     """
 
+    # Name should be 'ras' for production and 'globus' for local development
     name = 'ras'
+    # name = 'globus'
+
     # Override the current v1 userinfo endpoint. The v1.1 endpoint returns
     # userinfo in a JWT token instead of plain JSON. If not specified,
     # /userinfo will default to the value in .well-known/openid-configuration
@@ -159,5 +161,4 @@ class RasOpenIDConnect(OpenIdConnectAuth):
         headers = self.revoke_token_headers(token, uid)
         data = urlencode(params)
         requests.post(self.LOGOUT_URL, headers=headers, data=data)
-        logout_user()
         return True
