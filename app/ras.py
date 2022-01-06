@@ -105,7 +105,7 @@ class RasOpenIDConnect(OpenIdConnectAuth):
     def get_algorithm(self, jwt_token):
         """Get the algorithm 'alg' set on a JWT token header"""
         header, _, _ = jwt_token.split('.')
-        return json.loads(base64url_decode(header)).get('alg')
+        return json.loads(base64url_decode(header + '=')).get('alg')
 
     def verify_jwt(self, jwt, algorithm):
         """Verifies a jwt and returns the key used to do so. Returns None if
